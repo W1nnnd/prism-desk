@@ -28,7 +28,6 @@
     "@iwsdk/cli": "1.1.0-rc.2",
     "@iwsdk/reference": "1.1.0-rc.2",
     "@iwsdk/vite-plugin-dev": "1.1.0-rc.2",
-    "@meta-quest/metavr": "^1.8.1",
     "@types/three": "^0.185.0",
     "playwright-core": "^1.64.1",
     "typescript": "^5.5.0",

@@ -15,15 +15,15 @@ Legend: 🤖 = assistant (box) · 👤 = user only · ✅ done
 
 ## Build (🤖)
 - [x] 🤖 IWSDK (WebXR) project scaffolded, puzzle core + unit tests, `npm run check` passes.
-- [ ] 🤖 Hands-first end-to-end (no controller ever needed) — verify in IWER hand mode.
-- [ ] 🤖 Seated / 2-ft radius; essential UI in narrow FoV; fast cold start; pause/resume.
-- [ ] 🤖 Purposeful passthrough + scene understanding (plane/mesh/hit-test, anchors).
-- [ ] 🤖 English-only UI; no brands/logos; no identifiable people; licences for all assets recorded in CREDITS.md.
+- [x] 🤖 Hands-first end-to-end (no controller ever needed) — verified in IWER hand mode (poke, pinch-ray, dwell).
+- [x] 🤖 Seated / 2-ft radius; essential UI in narrow FoV (~30° board); fast cold start; pause/resume on blur.
+- [x] 🤖 Purposeful passthrough + scene understanding (table placement, real objects → blockers). [ ] persistent anchors for garden.
+- [x] 🤖 English-only UI; no brands/logos; no identifiable people; licences in CREDITS.md.
 - [ ] 🤖 Perf budget for Quest (≥ 60 fps target 72) — emulator profiling.
 - [ ] 👤 (Strongly recommended) Real Meta Quest test of the hosted link — headset needed; or ask a friend/Start mentor.
 
 ## Hosting (needs 👤 approval before 🤖 does it — public action)
-- [ ] 👤 Approve a public GitHub repo + GitHub Pages (or Vercel/other) deployment.
+- [x] 👤 Approved (Oct 31): public repo W1nnnd/prism-desk + GitHub Pages.
 - [ ] 🤖 Deploy; HTTPS link works in Quest Browser; stays live until ~Dec 11 (winner announcement). No changes after deadline.
 
 ## Demo video (< 3:00)

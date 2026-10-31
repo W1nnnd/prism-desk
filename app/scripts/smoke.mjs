@@ -5,7 +5,7 @@
 import { chromium } from 'playwright-core';
 
 const url = process.env.SMOKE_URL ?? 'https://localhost:8081/';
-const out = process.env.SMOKE_SHOT ?? '../docs/screenshots/skeleton_desktop.png';
+const out = process.env.SMOKE_SHOT ?? '../docs/screenshots/desktop_smoke.png';
 const browser = await chromium.launch({
   executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
   args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],

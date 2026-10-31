@@ -1,4 +1,5 @@
 import { Board, Cell, Dir, DX, DY, idx, inBounds, reflect, trace } from './beam.js';
+import { solve } from './solver.js';
 
 /** Deterministic PRNG so every player gets the same puzzle on the same day. */
 export function mulberry32(seed: number) {
@@ -18,27 +19,48 @@ export function hashString(s: string): number {
   return h >>> 0;
 }
 
-export const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+/** Local calendar day (the puzzle flips at the player's midnight). */
+export const dayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+export interface PuzzleSpec {
+  w: number;
+  h: number;
+  turns: number; // mirrors on the solution path
+  decoys: number; // extra rotatable mirrors off the path
+  walls: number; // virtual blockers
+  minFlips: number; // minimum rotations needed from the start state
+  blocked?: number[]; // cells occupied by real-world objects (from scene understanding)
+}
 
 export interface Puzzle {
   board: Board;
   solution: Board;
-  turns: number;
+  minFlips: number;
 }
+
+type Mirror = Extract<Cell, { kind: 'mirror' }>;
 
 /**
  * Builds a solvable puzzle by walking a beam path with `turns` mirrors,
- * then scrambling the mirrors so the start state is unsolved.
+ * then scrambling mirrors so the start state needs ≥ minFlips rotations.
+ * Real-world blocked cells become `room` walls the path must route around.
  */
-export function generatePuzzle(seedKey: string, w = 6, h = 6, turns = 3): Puzzle {
-  const rnd = mulberry32(hashString(seedKey));
+export function generatePuzzle(seedKey: string, spec: PuzzleSpec): Puzzle {
+  const { w, h, turns } = spec;
+  const blocked = new Set((spec.blocked ?? []).filter((i) => i >= 0 && i < w * h));
+  const rnd = mulberry32(hashString(`${seedKey}|${w}x${h}|${turns}|${[...blocked].sort((a, b) => a - b).join(',')}`));
   const pick = <T>(xs: T[]) => xs[Math.floor(rnd() * xs.length)];
 
-  for (let attempt = 0; attempt < 500; attempt++) {
-    const cells: Cell[] = Array.from({ length: w * h }, () => ({ kind: 'empty' }) as Cell);
+  for (let attempt = 0; attempt < 3000; attempt++) {
+    const cells: Cell[] = Array.from({ length: w * h }, (_, i) =>
+      blocked.has(i) ? ({ kind: 'wall', room: true } as Cell) : ({ kind: 'empty' } as Cell),
+    );
     const b: Board = { w, h, cells };
+    const starts = Array.from({ length: h }, (_, y) => y).filter((y) => !blocked.has(idx(b, 0, y)));
+    if (!starts.length) break;
     let x = 0;
-    let y = 1 + Math.floor(rnd() * (h - 2));
+    let y = pick(starts);
     let dir: Dir = 1;
     cells[idx(b, x, y)] = { kind: 'emitter', dir };
     const used = new Set<number>([idx(b, x, y)]);
@@ -50,8 +72,13 @@ export function generatePuzzle(seedKey: string, w = 6, h = 6, turns = 3): Puzzle
       for (let s = 0; s < len; s++) {
         const nx = x + DX[dir];
         const ny = y + DY[dir];
-        if (!inBounds(b, nx, ny) || used.has(idx(b, nx, ny))) { ok = false; break; }
-        x = nx; y = ny; used.add(idx(b, x, y));
+        if (!inBounds(b, nx, ny) || used.has(idx(b, nx, ny)) || blocked.has(idx(b, nx, ny))) {
+          ok = false;
+          break;
+        }
+        x = nx;
+        y = ny;
+        used.add(idx(b, x, y));
       }
       if (!ok) break;
       if (t === turns) {
@@ -64,32 +91,30 @@ export function generatePuzzle(seedKey: string, w = 6, h = 6, turns = 3): Puzzle
       }
     }
     if (!ok) continue;
+    if (!trace({ w, h, cells }).solved) continue;
+
+    const free = () => cells.map((c, i) => (c.kind === 'empty' && !used.has(i) ? i : -1)).filter((i) => i >= 0);
+    for (let k = 0; k < spec.decoys; k++) {
+      const f = free();
+      if (f.length) cells[pick(f)] = { kind: 'mirror', slash: rnd() < 0.5 };
+    }
+    for (let k = 0; k < spec.walls; k++) {
+      const f = free();
+      if (f.length) cells[pick(f)] = { kind: 'wall' };
+    }
     const solution: Board = { w, h, cells: cells.slice() };
     if (!trace(solution).solved) continue;
 
-    // Decoys: one extra rotatable mirror and two walls off the path.
-    const free = cells.map((_, i) => i).filter((i) => !used.has(i));
-    const decoy = pick(free);
-    cells[decoy] = { kind: 'mirror', slash: rnd() < 0.5 };
-    for (let k = 0; k < 2; k++) {
-      const f = free.filter((i) => cells[i].kind === 'empty');
-      cells[pick(f)] = { kind: 'wall' };
-    }
-
-    // Scramble: flip at least one solution mirror.
     const board: Board = { w, h, cells: cells.slice() };
     for (const m of mirrors) {
-      const c = board.cells[m] as Extract<Cell, { kind: 'mirror' }>;
-      if (rnd() < 0.6) board.cells[m] = { ...c, slash: !c.slash };
+      if (rnd() < 0.7) {
+        const c = board.cells[m] as Mirror;
+        board.cells[m] = { ...c, slash: !c.slash };
+      }
     }
-    if (trace(board).solved) {
-      const m = mirrors[0];
-      const c = board.cells[m] as Extract<Cell, { kind: 'mirror' }>;
-      board.cells[m] = { ...c, slash: !c.slash };
-    }
-    if (trace(board).solved) continue;
-    const fullSolution: Board = { w, h, cells: cells.slice() };
-    return { board, solution: fullSolution, turns };
+    const sol = solve(board);
+    if (!sol || sol.length < Math.max(1, spec.minFlips)) continue;
+    return { board, solution, minFlips: sol.length };
   }
-  throw new Error('could not generate puzzle');
+  throw new Error(`could not generate puzzle for ${seedKey}`);
 }

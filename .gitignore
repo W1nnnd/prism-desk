@@ -8,3 +8,4 @@ app/.vscode/mcp.json
 app/.codex/config.toml
 *.log
 .env*
+app/opencode.json

@@ -17,7 +17,8 @@
         "anchors": true,
         "planeDetection": true,
         "meshDetection": true,
-        "hitTest": true
+        "hitTest": true,
+        "gazeTracking": true
       }
     },
     "input": {
@@ -30,25 +31,25 @@
       "camera": {
         "position": [
           0,
-          1.6,
-          1
+          1.1,
+          -0.02
         ],
         "lookAt": [
           0,
-          0.95,
-          -1.95
+          0.76,
+          -0.46
         ]
       }
     },
     "features": {
       "locomotion": false,
-      "grabbing": true,
+      "grabbing": false,
       "physics": false,
       "sceneUnderstanding": true,
       "environmentRaycast": true,
-      "spatialUI": {
-        "kit": "horizon",
-        "preferredColorScheme": "dark"
+      "gaze": {
+        "coneAngle": 7,
+        "logDiagnostics": false
       }
     }
   },

@@ -8,7 +8,7 @@ export const DY = [-1, 0, 1, 0] as const;
 
 export type Cell =
   | { kind: 'empty' }
-  | { kind: 'wall' }
+  | { kind: 'wall'; room?: boolean } // room: a real-world object detected on the table
   | { kind: 'emitter'; dir: Dir }
   | { kind: 'target' }
   | { kind: 'mirror'; slash: boolean; locked?: boolean }; // slash: '/', else '\'
