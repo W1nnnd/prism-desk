@@ -238,6 +238,7 @@ export class PrismGameSystem extends createSystem({
         anchor: this.anchorState,
         anchorError: this.anchorError,
         spill: this.spillHit,
+        spillPoint: this.spillSpot.visible ? this.spillSpot.getWorldPosition(new Vector3()).toArray() : null,
         pose: { ...this.pose, surface: this.pose.surface ? this.pose.surface.label ?? 'surface' : null },
         settings: this.progress.settings,
         hint: this.session.hint(),
@@ -256,6 +257,11 @@ export class PrismGameSystem extends createSystem({
       place: () => {
         this.placeTries = 0;
         this.placeAt = this.now + 0.01;
+      },
+      /** World position of a dock button's top face (for emulated-hand presses). */
+      buttonWorld: (a: Action) => {
+        const b = this.buttons.get(a);
+        return b ? b.pad.localToWorld(new Vector3(0, 0.006, 0)).toArray() : null;
       },
       /** CSS-pixel screen position of a board cell (desktop click tests). */
       screen: (cell: number) => {

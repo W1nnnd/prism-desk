@@ -1,0 +1,108 @@
+1
+00:00:00,350 --> 00:00:01,149
+Prism Desk.
+
+2
+00:00:01,149 --> 00:00:04,780
+A daily light puzzle that lives on your real desk.
+
+3
+00:00:05,680 --> 00:00:07,708
+Put on your Quest and sit down.
+
+4
+00:00:07,708 --> 00:00:15,102
+Prism Desk finds the table in front of you, and sets a small puzzle board within easy reach, about two feet away.
+
+5
+00:00:16,000 --> 00:00:18,002
+No controllers, and no wall of text.
+
+6
+00:00:18,002 --> 00:00:20,116
+A glowing ring marks the first mirror.
+
+7
+00:00:20,116 --> 00:00:23,675
+Touch it with your fingertip, and the light reaches the crystal.
+
+8
+00:00:24,570 --> 00:00:25,848
+Mirror out of reach?
+
+9
+00:00:25,848 --> 00:00:27,510
+Point your hand and pinch.
+
+10
+00:00:27,510 --> 00:00:30,770
+The second lesson teaches the pinch ray in seconds.
+
+11
+00:00:31,670 --> 00:00:33,497
+Then the real game begins.
+
+12
+00:00:33,497 --> 00:00:39,962
+Every day brings three new puzzles, generated from the date, so everyone plays the same set.
+
+13
+00:00:39,962 --> 00:00:43,826
+A solver checks each one, so there is always an answer.
+
+14
+00:00:44,730 --> 00:00:48,148
+When the beam misses, the light doesn't stop at the board.
+
+15
+00:00:48,148 --> 00:00:51,389
+It spills into your room, and lands on your real walls.
+
+16
+00:00:52,290 --> 00:00:55,562
+Prism Desk is designed for seated, one-handed play.
+
+17
+00:00:55,562 --> 00:00:58,834
+Dwell mode selects a mirror when you hold your aim.
+
+18
+00:00:58,834 --> 00:00:59,860
+No pinch needed.
+
+19
+00:01:00,760 --> 00:01:07,703
+High contrast mode keeps every tile and beam easy to read, and the control dock can swap to either side.
+
+20
+00:01:08,600 --> 00:01:11,851
+Finish the day, and a new crystal grows in your garden.
+
+21
+00:01:12,750 --> 00:01:16,165
+Come back tomorrow to keep your streak and grow the garden.
+
+22
+00:01:16,165 --> 00:01:18,770
+This is a demo save with three weeks of play.
+
+23
+00:01:19,670 --> 00:01:21,825
+Spatial anchors remember your desk.
+
+24
+00:01:21,825 --> 00:01:25,458
+Leave, come back, and the board is right where you left it.
+
+25
+00:01:26,360 --> 00:01:27,178
+Prism Desk.
+
+26
+00:01:27,178 --> 00:01:29,631
+Built with the Immersive Web SDK.
+
+27
+00:01:29,631 --> 00:01:32,456
+Play it now in the Meta Quest Browser.
+

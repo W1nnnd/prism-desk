@@ -9,3 +9,6 @@ app/.codex/config.toml
 *.log
 .env*
 app/opencode.json
+
+# trailer video is uploaded by the user, not committed
+demo/*.mp4
