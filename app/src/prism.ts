@@ -23,6 +23,11 @@ import {
   Pressed,
   Hovered,
   Quaternion,
+  Raycaster,
+  Euler,
+  MeshBasicMaterial,
+  AdditiveBlending,
+  DoubleSide,
   RayInteractable,
   RingGeometry,
   Vector3,
@@ -62,7 +67,10 @@ const GLASS = new BoxGeometry(CELL * 0.86, CELL * 0.55, 0.005);
 const EMITTER = new CylinderGeometry(CELL * 0.28, CELL * 0.34, CELL * 0.55, 12);
 const CRYSTAL = new OctahedronGeometry(CELL * 0.3, 0);
 const RING = new RingGeometry(CELL * 0.42, CELL * 0.5, 24);
-const BUTTON = new BoxGeometry(0.046, 0.01, 0.032);
+const BUTTON = new BoxGeometry(0.066, 0.01, 0.038);
+const SPOT = new RingGeometry(0, 0.035, 20);
+const ANCHOR_KEY = 'prism-desk-anchor-uuid';
+const UP = new Vector3(0, 1, 0);
 
 export class PrismGameSystem extends createSystem({
   pressed: { required: [Pressed] },
@@ -110,6 +118,18 @@ export class PrismGameSystem extends createSystem({
   private dwellLock: Entity | null = null;
   private growStart = -1;
   private blurred = false;
+  // persistent spatial anchor (WebXR anchors + Quest persistent handles)
+  private anchor: XRAnchor | null = null;
+  private anchorState: 'none' | 'session' | 'persistent' | 'restored' = 'none';
+  private anchorJustRestored = false;
+  private anchorError = '';
+  private anchorGen = 0;
+  // beam spilling into the real room
+  private spillBeam!: Mesh;
+  private spillSpot!: Mesh;
+  private spillHit: string | null = null;
+  private ray = new Raycaster();
+  private euler = new Euler();
 
   // temps (no per-frame allocation)
   private m4 = new Matrix4();
@@ -145,6 +165,12 @@ export class PrismGameSystem extends createSystem({
     this.dwellRing.rotation.x = -Math.PI / 2;
     this.root.add(this.hintRing, this.dwellRing);
 
+    const spillMat = new MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.55, blending: AdditiveBlending, depthWrite: false });
+    this.spillBeam = new Mesh(BOX, spillMat);
+    this.spillSpot = new Mesh(SPOT, new MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.8, blending: AdditiveBlending, depthWrite: false, side: DoubleSide }));
+    this.spillBeam.visible = this.spillSpot.visible = false;
+    this.root.add(this.spillBeam, this.spillSpot);
+
     this.hud = new Label(0.28, 0.065, 768);
     this.hud.mesh.rotation.x = -0.55; // tilt toward a seated viewer looking down
     this.root.add(this.hud.mesh);
@@ -164,7 +190,18 @@ export class PrismGameSystem extends createSystem({
         this.blurred = state === VisibilityState.VisibleBlurred;
         if (this.immersive && !wasImmersive) {
           this.placeTries = 0;
-          this.placeAt = this.now + 0.3; // let the head pose settle one frame
+          this.anchor = null;
+          this.anchorState = 'none';
+          // Try to come back to the same spot on the same desk (persistent anchor); otherwise place fresh.
+          this.placeAt = this.now + 2.5; // fallback if restore hangs
+          const gen = ++this.anchorGen;
+          void this.tryRestoreAnchor().then((ok) => {
+            if (gen !== this.anchorGen) return;
+            if (ok) {
+              this.placeAt = -1;
+              this.anchorJustRestored = true;
+            } else this.placeAt = this.now + 0.3;
+          });
           // Quest "recenter" (hold Meta button / long-pinch) fires a reference-space reset → re-place the board.
           const ref = this.world.renderer.xr.getReferenceSpace();
           ref?.addEventListener('reset', () => {
@@ -172,7 +209,12 @@ export class PrismGameSystem extends createSystem({
             this.placeAt = this.now + 0.1;
           });
         }
-        if (!this.immersive && wasImmersive) this.applyPose(DESKTOP_POSE);
+        if (!this.immersive && wasImmersive) {
+          this.anchor = null; // XRSpaces die with the session; the persistent handle stays in storage
+          this.anchorGen++;
+          this.spillBeam.visible = this.spillSpot.visible = false;
+          this.applyPose(DESKTOP_POSE);
+        }
       }),
     );
     const unlock = () => this.synth.unlock();
@@ -193,6 +235,9 @@ export class PrismGameSystem extends createSystem({
         streak: currentStreak(this.progress, this.day),
         garden: gardenSize(this.progress),
         roomCells: this.roomCells,
+        anchor: this.anchorState,
+        anchorError: this.anchorError,
+        spill: this.spillHit,
         pose: { ...this.pose, surface: this.pose.surface ? this.pose.surface.label ?? 'surface' : null },
         settings: this.progress.settings,
         hint: this.session.hint(),
@@ -207,7 +252,11 @@ export class PrismGameSystem extends createSystem({
       }),
       tap: (cell: number) => this.handle(this.session.toggle(cell)),
       action: (a: Action) => this.doAction(a),
-      place: () => this.placeInXR(),
+      /** Same path as a Quest recenter: re-place on the next XR frame. */
+      place: () => {
+        this.placeTries = 0;
+        this.placeAt = this.now + 0.01;
+      },
       /** CSS-pixel screen position of a board cell (desktop click tests). */
       screen: (cell: number) => {
         const v = this.root.localToWorld(this.cellLocal(cell, new Vector3(), 0.012)).project(this.world.camera);
@@ -357,9 +406,9 @@ export class PrismGameSystem extends createSystem({
     ];
     defs.forEach(([action, text], k) => {
       const pad = new Mesh(BUTTON, this.mats.ui);
-      pad.position.set(0, 0.005, (k - (defs.length - 1) / 2) * 0.042);
+      pad.position.set(0, 0.005, (k - (defs.length - 1) / 2) * 0.046);
       pad.userData = { action } satisfies Tag;
-      const label = new Label(0.044, 0.03, 256);
+      const label = new Label(0.064, 0.036, 512);
       label.mesh.rotation.x = -Math.PI / 2;
       label.mesh.position.y = 0.0062;
       pad.add(label.mesh);
@@ -373,7 +422,7 @@ export class PrismGameSystem extends createSystem({
 
   private layoutDock() {
     const side = this.progress.settings.dockLeft ? -1 : 1;
-    this.dock.position.set(side * (this.half + 0.045), 0, 0.02);
+    this.dock.position.set(side * (this.half + 0.055), 0, 0.02);
   }
 
   private buildGarden() {
@@ -461,6 +510,7 @@ export class PrismGameSystem extends createSystem({
     }
     this.beam.count = k;
     this.beam.instanceMatrix.needsUpdate = true;
+    this.updateSpill();
     // targets
     this.targets.forEach((m, i) => (m.material = r.litTargets.includes(i) ? this.mats.targetOn : this.mats.targetOff));
     // toggles
@@ -587,8 +637,18 @@ export class PrismGameSystem extends createSystem({
     const size = Math.max(this.session.board.w, this.session.board.h) * CELL + 0.1;
     const pose = chooseBoardPose(this.v.toArray(), this.v2.toArray(), surfaces, size);
     this.applyPose(pose);
+    this.applyRoomBlockers(pose, surfaces);
+    if (pose.surface) void this.createAnchorAt(pose);
+    // Planes/meshes can arrive a moment after session start: retry while nothing was found.
+    if (!pose.surface && this.placeTries < 3) this.placeAt = this.now + 1.5;
+    else this.placeAt = -1;
+    this.placeTries++;
+    this.updateSpill();
+    this.updateHud();
+  }
 
-    // Real objects on the table become blockers — only before the player has moved on today's board.
+  /** Real objects on the table become blockers — only before the player has moved on today's board. */
+  private applyRoomBlockers(pose: BoardPose, surfaces: SurfaceBox[]) {
     const s = this.session;
     if (pose.surface && !s.dayComplete && s.level.kind === 'daily' && s.moves === 0) {
       const objects = surfaces;
@@ -601,17 +661,179 @@ export class PrismGameSystem extends createSystem({
         this.refresh();
       }
     }
-    // Planes/meshes can arrive a moment after session start: retry while nothing was found.
-    if (!pose.surface && this.placeTries < 3) this.placeAt = this.now + 1.5;
-    else this.placeAt = -1;
-    this.placeTries++;
-    this.updateHud();
+  }
+
+  // ---------- persistent anchors ----------
+  private xrSession() {
+    return this.world.session as
+      | (XRSession & {
+          restorePersistentAnchor?: (uuid: string) => Promise<XRAnchor>;
+          deletePersistentAnchor?: (uuid: string) => Promise<void>;
+        })
+      | undefined;
+  }
+
+  private async tryRestoreAnchor(): Promise<boolean> {
+    const session = this.xrSession();
+    let uuid: string | null = null;
+    try {
+      uuid = globalThis.localStorage?.getItem(ANCHOR_KEY) ?? null;
+    } catch {
+      /* no storage */
+    }
+    if (!session?.restorePersistentAnchor || !uuid) return false;
+    try {
+      const a = await session.restorePersistentAnchor(uuid);
+      if (!a) throw new Error('no anchor');
+      this.anchor = a;
+      this.anchorState = 'restored';
+      return true;
+    } catch {
+      try {
+        globalThis.localStorage?.removeItem(ANCHOR_KEY);
+      } catch {
+        /* ignore */
+      }
+      return false;
+    }
+  }
+
+  private async createAnchorAt(p: BoardPose) {
+    const frame = this.world.renderer.xr.getFrame() as (XRFrame & { createAnchor?: XRFrame['createAnchor'] }) | null;
+    const ref = this.world.renderer.xr.getReferenceSpace();
+    if (!frame?.createAnchor || !ref) {
+      this.anchorError = frame ? 'createAnchor unsupported' : 'no XR frame';
+      return;
+    }
+    const gen = this.anchorGen;
+    this.q.setFromAxisAngle(UP, p.yaw);
+    // createAnchor must be called synchronously inside the XR frame callback.
+    let pending: Promise<XRAnchor> | undefined;
+    try {
+      pending = frame.createAnchor(
+        new XRRigidTransform({ x: p.x, y: p.y, z: p.z }, { x: this.q.x, y: this.q.y, z: this.q.z, w: this.q.w }),
+        ref,
+      );
+    } catch (err) {
+      this.anchorError = String(err);
+      return;
+    }
+    await this.dropAnchor(); // replace the previous (persistent) anchor
+    try {
+      const a = await pending;
+      if (!a || gen !== this.anchorGen) return;
+      this.anchor = a;
+      this.anchorState = 'session';
+      this.anchorError = '';
+      const persist = (a as XRAnchor & { requestPersistentHandle?: () => Promise<string> }).requestPersistentHandle;
+      if (persist) {
+        const uuid = await persist.call(a);
+        if (uuid && gen === this.anchorGen) {
+          globalThis.localStorage?.setItem(ANCHOR_KEY, uuid);
+          this.anchorState = 'persistent';
+        }
+      }
+    } catch (err) {
+      this.anchorError = String(err); // anchors are optional: the board simply stays where it was placed
+    }
+  }
+
+  private async dropAnchor() {
+    const old = this.anchor;
+    this.anchor = null;
+    this.anchorState = 'none';
+    try {
+      const uuid = globalThis.localStorage?.getItem(ANCHOR_KEY);
+      if (uuid) {
+        globalThis.localStorage?.removeItem(ANCHOR_KEY);
+        await this.xrSession()?.deletePersistentAnchor?.(uuid);
+      }
+      old?.delete();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Follow the anchor so the board + garden stay locked to the real desk (and come back there next time). */
+  private followAnchor() {
+    if (!this.anchor) return;
+    const frame = this.world.renderer.xr.getFrame();
+    const ref = this.world.renderer.xr.getReferenceSpace();
+    const pose = frame && ref ? frame.getPose(this.anchor.anchorSpace, ref) : undefined;
+    if (!pose) return;
+    const t = pose.transform;
+    this.root.position.set(t.position.x, t.position.y, t.position.z);
+    this.root.quaternion.set(t.orientation.x, t.orientation.y, t.orientation.z, t.orientation.w);
+    this.euler.setFromQuaternion(this.root.quaternion, 'YXZ');
+    this.pose.x = t.position.x;
+    this.pose.y = t.position.y;
+    this.pose.z = t.position.z;
+    this.pose.yaw = this.euler.y;
+    if (this.anchorJustRestored) {
+      this.anchorJustRestored = false;
+      const surfaces = this.surfaces();
+      const under = surfaces.find(
+        (b) => Math.abs(b.max[1] - t.position.y) < 0.03 && t.position.x > b.min[0] && t.position.x < b.max[0] && t.position.z > b.min[2] && t.position.z < b.max[2],
+      );
+      this.pose = { x: t.position.x, y: t.position.y, z: t.position.z, yaw: this.euler.y, surface: under ?? null };
+      if (under) this.applyRoomBlockers(this.pose, surfaces);
+      this.updateSpill();
+      this.updateHud();
+    }
+  }
+
+  // ---------- beam spilling into the room ----------
+  /**
+   * When the beam leaves the board, continue it into the real room until it hits a detected wall,
+   * piece of furniture or object (scene-understanding planes/meshes) and paint a light spot there.
+   * Raycast runs only when the board changes — never per frame.
+   */
+  private updateSpill() {
+    this.spillBeam.visible = this.spillSpot.visible = false;
+    this.spillHit = null;
+    if (!this.immersive) return;
+    const r = this.session.result;
+    const last = r.segments[r.segments.length - 1];
+    const { w, h } = this.session.board;
+    if (!last || r.solved) return;
+    const out = last.x1 < 0 || last.y1 < 0 || last.x1 > w - 1 || last.y1 > h - 1;
+    if (!out) return;
+    const dx = Math.sign(last.x1 - last.x0);
+    const dz = Math.sign(last.y1 - last.y0);
+    if (!dx && !dz) return;
+    const ox = (last.x1 - (w - 1) / 2) * CELL;
+    const oz = (last.y1 - (h - 1) / 2) * CELL;
+    const origin = this.root.localToWorld(this.v.set(ox, CELL * 0.3, oz));
+    const dir = this.v2.set(dx, 0, dz).applyQuaternion(this.root.getWorldQuaternion(this.q)).normalize();
+    this.ray.set(origin, dir);
+    this.ray.far = 4;
+    const targets: Object3D[] = [];
+    for (const e of this.queries.planes.entities) if (e.object3D) targets.push(e.object3D);
+    for (const e of this.queries.meshes.entities) if (e.object3D) targets.push(e.object3D);
+    if (!targets.length) return;
+    const hits = this.ray.intersectObjects(targets, false).filter((x) => x.distance > 0.01);
+    const hit = hits[0];
+    if (!hit) return;
+    const d = hit.distance;
+    // spill segment in board-local space (axis aligned)
+    this.spillBeam.position.set(ox + (dx * d) / 2, CELL * 0.3, oz + (dz * d) / 2);
+    this.spillBeam.scale.set(dx ? d : 0.005, 0.005, dz ? d : 0.005);
+    this.spillBeam.visible = true;
+    const p = this.root.worldToLocal(hit.point.clone());
+    this.spillSpot.position.copy(p);
+    const n = hit.face?.normal.clone().transformDirection(hit.object.matrixWorld) ?? dir.clone().negate();
+    this.spillSpot.lookAt(hit.point.clone().add(n));
+    this.spillSpot.visible = true;
+    const e = [...this.queries.planes.entities].find((x) => x.object3D === hit.object) ?? [...this.queries.meshes.entities].find((x) => x.object3D === hit.object);
+    const label = e ? (e.hasComponent(XRPlane) ? (e.getValue(XRPlane, '_plane') as { semanticLabel?: string })?.semanticLabel : e.getValue(XRMesh, 'semanticLabel')) : '';
+    this.spillHit = `${label || 'surface'} @ ${d.toFixed(2)} m`;
   }
 
   // ---------- frame ----------
   update(delta: number, time: number): void {
     this.now = time;
     if (this.placeAt > 0 && time >= this.placeAt && this.immersive) this.placeInXR();
+    if (this.immersive) this.followAnchor();
     if (this.blurred) return; // paused (system UI / headset off): nothing animates
 
     // mirror rotation easing

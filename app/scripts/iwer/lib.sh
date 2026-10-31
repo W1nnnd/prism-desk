@@ -4,7 +4,7 @@ ev() { PRISM_EXPR="$1" npx iwsdk browser run scripts/iwer/eval.mjs 2>&1 | grep '
 shot() { local p; p=$(npx iwsdk browser screenshot 2>&1 | grep -o '/tmp/iwsdk-screenshot[^"]*' | head -1); cp "$p" "$1" && echo "saved $1"; }
 seat() { # sit at the emulated dining table, facing it
   iw xr set-transform --input-json '{"device":"headset","position":{"x":-0.15,"y":1.15,"z":1.35},"orientation":{"pitch":-38,"yaw":90,"roll":0}}' >/dev/null
-  sleep 0.5; ev '__prism.place(), __prism.state().pose'
+  ev '__prism.place(), 1' >/dev/null; sleep 1.5; ev '__prism.state().pose'
 }
 press_cell() { # poke a board cell with the right index fingertip
   local pos; pos=$(ev "__prism.cellWorld($1)")
