@@ -153,6 +153,7 @@ export class PrismGameSystem extends createSystem({
     this.buildLevel();
     this.buildGarden();
     this.buildDomHud();
+    this.buildDesktopChrome();
     this.refresh();
 
     this.queries.pressed.subscribe('qualify', (e: Entity) => this.activate(e));
@@ -408,6 +409,30 @@ export class PrismGameSystem extends createSystem({
     document.body.appendChild(this.domHud);
   }
 
+  /** Desktop preview framing + an explicit Enter XR button where immersive-ar is supported. */
+  private buildDesktopChrome() {
+    if (typeof document === 'undefined') return;
+    document.body.style.background = 'radial-gradient(circle at 50% 40%, #2a3350 0%, #0b0f1a 70%)';
+    const xr = (navigator as Navigator & { xr?: XRSystem }).xr;
+    const btn = document.createElement('button');
+    btn.textContent = 'Enter XR';
+    btn.style.cssText =
+      'position:fixed;top:16px;left:50%;transform:translateX(-50%);padding:12px 28px;border-radius:24px;border:0;' +
+      'background:#3c6df0;color:#fff;font:600 18px system-ui;z-index:11;display:none;cursor:pointer';
+    btn.onclick = () => {
+      this.synth.unlock();
+      this.world.launchXR();
+    };
+    document.body.appendChild(btn);
+    void xr?.isSessionSupported('immersive-ar').then((ok) => {
+      if (ok) btn.style.display = 'block';
+    });
+    this.cleanupFuncs.push(
+      this.world.visibilityState.subscribe((st) => (btn.style.display = st === VisibilityState.NonImmersive && xr ? btn.style.display : 'none')),
+    );
+    if (!xr && this.domHud) this.domHud.dataset.noxr = '1';
+  }
+
   // ---------- state → visuals ----------
   private refresh() {
     const r = this.session.result;
@@ -460,7 +485,10 @@ export class PrismGameSystem extends createSystem({
   private updateHud() {
     const lines = this.hudLines();
     this.hud.set(lines, this.palette.text, this.palette.textBg, this.progress.settings.highContrast ? '#ffffff' : undefined);
-    if (this.domHud) this.domHud.textContent = `Prism Desk · ${this.day} · ${lines.join(' · ')}`;
+    if (this.domHud)
+      this.domHud.textContent =
+        `Prism Desk · ${this.day} · ${lines.join(' · ')}` +
+        (this.immersive ? '' : ' — Desktop preview: click mirrors/buttons (keys H R C D S). Open on Meta Quest for mixed reality.');
   }
 
   // ---------- input ----------
