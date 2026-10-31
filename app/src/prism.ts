@@ -208,6 +208,12 @@ export class PrismGameSystem extends createSystem({
       tap: (cell: number) => this.handle(this.session.toggle(cell)),
       action: (a: Action) => this.doAction(a),
       place: () => this.placeInXR(),
+      /** CSS-pixel screen position of a board cell (desktop click tests). */
+      screen: (cell: number) => {
+        const v = this.root.localToWorld(this.cellLocal(cell, new Vector3(), 0.012)).project(this.world.camera);
+        const r = this.world.renderer.domElement.getBoundingClientRect();
+        return [r.left + ((v.x + 1) / 2) * r.width, r.top + ((1 - v.y) / 2) * r.height];
+      },
       /** World position of a board cell (for driving emulated hands in tests). */
       cellWorld: (cell: number) => {
         const v = this.cellLocal(cell, new Vector3(), 0.012);
