@@ -1,0 +1,10 @@
+node_modules/
+app/node_modules/
+app/dist/
+app/.iwsdk/
+app/.mcp.json
+app/.cursor/mcp.json
+app/.vscode/mcp.json
+app/.codex/config.toml
+*.log
+.env*
