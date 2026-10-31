@@ -54,3 +54,29 @@ describe('game session (first five minutes → daily loop)', () => {
     expect(s.moves).toBe(0);
   });
 });
+
+describe('feedback events (polish)', () => {
+  it('emits targetLit only when a dark crystal becomes lit, before solved', () => {
+    const s = new GameSession('2026-11-05', { ...defaultProgress(), tutorialDone: true });
+    const events = playLevel(s);
+    const lit = events.filter((e) => e.type === 'targetLit');
+    expect(lit.length).toBeGreaterThanOrEqual(1);
+    expect(s.litCount).toBe(s.targetCount);
+    // every newly lit crystal is a real target cell, reported once per lighting
+    for (const e of lit) expect(s.board.cells[(e as { cell: number }).cell].kind).toBe('target');
+    const solvedAt = events.findIndex((e) => e.type === 'solved');
+    expect(events.findIndex((e) => e.type === 'targetLit')).toBeLessThan(solvedAt);
+  });
+
+  it('targetLit matches the change in lit crystals (toggle a mirror off and back)', () => {
+    const s = new GameSession('2026-11-06', { ...defaultProgress(), tutorialDone: true });
+    const start = [...s.result.litTargets];
+    const mirror = s.board.cells.findIndex((c) => c.kind === 'mirror' && !c.locked);
+    const first = s.toggle(mirror);
+    if (s.solved) return; // (not the case for this seed, guarded anyway)
+    const mid = [...s.result.litTargets];
+    expect(first.filter((e) => e.type === 'targetLit').map((e) => (e as { cell: number }).cell)).toEqual(mid.filter((t) => !start.includes(t)));
+    const second = s.toggle(mirror);
+    expect(second.filter((e) => e.type === 'targetLit').map((e) => (e as { cell: number }).cell).sort()).toEqual(start.filter((t) => !mid.includes(t)).sort());
+  });
+});

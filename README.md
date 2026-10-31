@@ -15,7 +15,7 @@ crystal garden one day at a time. Built for Meta Quest / Meta VR devices with Me
 - **The light leaves the board.** A missed beam keeps going and lands as a glowing spot on your real wall (raycast against detected planes/meshes only when the beam changes).
 - **It remembers your desk.** A persistent WebXR spatial anchor brings the board and garden back to the same spot across sessions/reloads; falls back to automatic table placement if anchors are unavailable.
 - **Hands-first input.** Direct poke with a fingertip, pinch-ray from either hand, or gaze + pinch on devices with eye tracking. No controller needed at any point.
-- **Accessibility.** DWELL mode (hover with gaze/ray for 1 s — no pinch at all), one-hand play with SWAP SIDE dock placement, HIGH CONTRAST palette (colour-blind-safe yellow/green/magenta), thicker beam in contrast mode, text-light UI.
+- **Accessibility.** DWELL mode (hover with gaze/ray for 1 s — no pinch at all), one-hand play with SWAP SIDE dock placement, HIGH CONTRAST palette (colour-blind-safe yellow/green/magenta), thicker beam in contrast mode, SOUND on/off, text-light UI; every cue is visual + audio (mirror pop, crystal flare, chimes).
 
 ## Tech
 TypeScript · IWSDK 1.1 (three.js, ECS, WebXR hand tracking, plane/mesh detection, hit-test, anchors, gaze) · Vite · Vitest.
@@ -27,7 +27,7 @@ TypeScript · IWSDK 1.1 (three.js, ECS, WebXR hand tracking, plane/mesh detectio
 cd app
 npm ci
 npm run dev:runtime   # https://localhost:8081 with the IWER Quest 3 emulator + synthetic living room
-npm run check         # typecheck + 23 unit tests + production build
+npm run check         # typecheck + 27 unit tests + production build
 ```
 IWER automation helpers used for verification live in `app/scripts/iwer/` (require `npx iwsdk dev up --allow-browser-automation`).
 Screenshots from the emulator: `docs/screenshots/`. Devpost form draft: `docs/DEVPOST_SUBMISSION.md`.

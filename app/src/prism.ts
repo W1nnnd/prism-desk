@@ -38,7 +38,7 @@ import {
 import { Board } from './game/beam.js';
 import { dayKey, hashString } from './game/daily.js';
 import { blockedCells, BoardPose, chooseBoardPose, SurfaceBox } from './game/placement.js';
-import { currentStreak, gardenSize, loadProgress, Progress, saveProgress } from './game/progress.js';
+import { currentStreak, gardenSize, loadProgress, Progress, saveProgress, untilNextDay } from './game/progress.js';
 import { GameEvent, GameSession } from './game/session.js';
 import { Synth } from './view/audio.js';
 import { Label } from './view/labels.js';
@@ -52,7 +52,15 @@ const DWELL_TIME = 1.0; // s hover/gaze to select in dwell mode
 const MAX_BEAM = 40;
 const MAX_GARDEN = 60;
 
-type Action = 'hint' | 'reset' | 'contrast' | 'dwell' | 'side';
+type Action = 'hint' | 'reset' | 'contrast' | 'dwell' | 'side' | 'sound';
+const BUTTON_TEXT: Record<Action, string> = {
+  hint: 'HINT',
+  reset: 'RESET',
+  contrast: 'CONTRAST',
+  dwell: 'DWELL',
+  side: 'SWAP SIDE',
+  sound: 'SOUND',
+};
 interface Tag {
   cell?: number;
   action?: Action;
@@ -117,6 +125,12 @@ export class PrismGameSystem extends createSystem({
   private dwellStart = 0;
   private dwellLock: Entity | null = null;
   private growStart = -1;
+  // feedback animations
+  private popCell = -1; // mirror that was just rotated (scale pop)
+  private popAt = -1;
+  private litAt = new Map<number, number>(); // crystal cell → time it lit up (flash)
+  private hudCountdown = '';
+  private hudCheckAt = 0;
   private blurred = false;
   // persistent spatial anchor (WebXR anchors + Quest persistent handles)
   private anchor: XRAnchor | null = null;
@@ -142,6 +156,7 @@ export class PrismGameSystem extends createSystem({
   init(): void {
     this.progress = loadProgress(globalThis.localStorage);
     this.palette = this.progress.settings.highContrast ? HIGH_CONTRAST : NORMAL;
+    this.synth.muted = !this.progress.settings.sound;
     this.mats = this.makeMats();
     this.session = new GameSession(this.day, this.progress);
 
@@ -241,6 +256,8 @@ export class PrismGameSystem extends createSystem({
         spillPoint: this.spillSpot.visible ? this.spillSpot.getWorldPosition(new Vector3()).toArray() : null,
         pose: { ...this.pose, surface: this.pose.surface ? this.pose.surface.label ?? 'surface' : null },
         settings: this.progress.settings,
+        crystals: [this.session.litCount, this.session.targetCount],
+        hud: this.hudLines(),
         hint: this.session.hint(),
         surfaces: this.surfaces().map((b) => ({
           label: b.label,
@@ -342,6 +359,8 @@ export class PrismGameSystem extends createSystem({
     }
     this.mirrorGlass.clear();
     this.targets.clear();
+    this.litAt.clear();
+    this.popCell = -1;
   }
 
   private instanced(geo: BoxGeometry, mat: MeshStandardMaterial, cells: number[], y: number) {
@@ -403,13 +422,7 @@ export class PrismGameSystem extends createSystem({
   }
 
   private buildDock() {
-    const defs: [Action, string][] = [
-      ['hint', 'HINT'],
-      ['reset', 'RESET'],
-      ['contrast', 'CONTRAST'],
-      ['dwell', 'DWELL'],
-      ['side', 'SWAP SIDE'],
-    ];
+    const defs: [Action, string][] = (['hint', 'reset', 'contrast', 'dwell', 'side', 'sound'] as Action[]).map((a) => [a, BUTTON_TEXT[a]]);
     defs.forEach(([action, text], k) => {
       const pad = new Mesh(BUTTON, this.mats.ui);
       pad.position.set(0, 0.005, (k - (defs.length - 1) / 2) * 0.046);
@@ -521,10 +534,10 @@ export class PrismGameSystem extends createSystem({
     this.targets.forEach((m, i) => (m.material = r.litTargets.includes(i) ? this.mats.targetOn : this.mats.targetOff));
     // toggles
     const set = this.progress.settings;
-    const active: Partial<Record<Action, boolean>> = { contrast: set.highContrast, dwell: set.dwell };
+    const active: Partial<Record<Action, boolean>> = { contrast: set.highContrast, dwell: set.dwell, sound: set.sound };
     this.buttons.forEach(({ pad, label }, a) => {
       pad.material = active[a] ? this.mats.uiActive : this.mats.ui;
-      const txt = { hint: 'HINT', reset: 'RESET', contrast: 'CONTRAST', dwell: 'DWELL', side: 'SWAP SIDE' }[a];
+      const txt = a === 'sound' ? (set.sound ? 'SOUND ON' : 'SOUND OFF') : BUTTON_TEXT[a];
       label.set([txt], active[a] && set.highContrast ? '#000000' : this.palette.text, active[a] ? 'rgba(0,0,0,0)' : this.palette.textBg);
     });
     this.updateHud();
@@ -534,14 +547,15 @@ export class PrismGameSystem extends createSystem({
     const s = this.session;
     const streak = currentStreak(this.progress, this.day);
     const garden = gardenSize(this.progress);
-    if (s.dayComplete && s.solved)
-      return ['Day complete!', `Streak ${streak} · Garden ${garden} · New puzzles tomorrow`];
-    if (s.dayComplete) return ['Today is done', `Streak ${streak} · Garden ${garden} · Come back tomorrow`];
+    const next = `New puzzles in ${this.hudCountdown || untilNextDay(new Date())}`;
+    if (s.dayComplete && s.solved) return ['Day complete!', `Streak ${streak} · Garden ${garden} · ${next}`];
+    if (s.dayComplete) return ['Today is done', `Streak ${streak} · Garden ${garden} · ${next}`];
     if (s.solved) return ['Solved!', s.level.kind === 'tutorial' ? 'Nice — next one' : `Streak ${streak} · Garden ${garden}`];
     if (s.level.kind === 'tutorial')
       return [s.level.prompt, s.index === 0 ? 'Each pinch turns a mirror' : 'Light every crystal to finish'];
     const room = this.roomCells > 0 ? ' · Shaped by your desk' : '';
-    return [s.level.prompt, `Streak ${streak} · Garden ${garden}${room}`];
+    const crystals = s.targetCount > 1 ? ` · Crystals ${s.litCount}/${s.targetCount}` : '';
+    return [`${s.level.prompt}${crystals}`, `Streak ${streak} · Garden ${garden}${room}`];
   }
 
   private updateHud() {
@@ -550,7 +564,7 @@ export class PrismGameSystem extends createSystem({
     if (this.domHud)
       this.domHud.textContent =
         `Prism Desk · ${this.day} · ${lines.join(' · ')}` +
-        (this.immersive ? '' : ' — Desktop preview: click mirrors/buttons (keys H R C D S). Open on Meta Quest for mixed reality.');
+        (this.immersive ? '' : ' — Desktop preview: click mirrors/buttons (keys H R C D S M). Open on Meta Quest for mixed reality.');
   }
 
   // ---------- input ----------
@@ -563,14 +577,18 @@ export class PrismGameSystem extends createSystem({
   }
 
   private onKey = (ev: KeyboardEvent) => {
-    const map: Record<string, Action> = { h: 'hint', r: 'reset', c: 'contrast', d: 'dwell', s: 'side' };
+    const map: Record<string, Action> = { h: 'hint', r: 'reset', c: 'contrast', d: 'dwell', s: 'side', m: 'sound' };
     const a = map[ev.key.toLowerCase()];
     if (a) this.doAction(a);
   };
 
   private doAction(a: Action) {
-    this.synth.ui();
     const set = this.progress.settings;
+    if (a === 'sound') {
+      set.sound = !set.sound;
+      this.synth.muted = !set.sound;
+    }
+    this.synth.ui();
     if (a === 'hint') {
       this.hintCell = this.session.hint();
       this.hintUntil = this.now + 5;
@@ -596,6 +614,11 @@ export class PrismGameSystem extends createSystem({
     for (const ev of events) {
       if (ev.type === 'rotated') {
         this.synth.tick();
+        this.popCell = ev.cell;
+        this.popAt = this.now;
+      } else if (ev.type === 'targetLit') {
+        this.litAt.set(ev.cell, this.now);
+        if (!events.some((e) => e.type === 'solved')) this.synth.lit(this.session.litCount);
         this.lastMoveAt = this.now;
         this.hintUntil = -1;
       } else if (ev.type === 'solved') {
@@ -848,7 +871,21 @@ export class PrismGameSystem extends createSystem({
       if (c.kind !== 'mirror') return;
       const target = c.slash ? Math.PI / 4 : -Math.PI / 4;
       g.rotation.y += (target - g.rotation.y) * Math.min(1, delta * 14);
+      // tactile "pop" on the mirror you just turned (hands have no haptics, so the feedback is visual + audio)
+      const pt = i === this.popCell ? time - this.popAt : 1;
+      const sc = pt < 0.25 ? 1 + 0.22 * Math.sin((pt / 0.25) * Math.PI) : 1;
+      g.scale.set(sc, sc, sc);
     });
+
+    // come-back countdown on the HUD (re-rendered only when the minute changes)
+    if (this.session.dayComplete && time >= this.hudCheckAt) {
+      this.hudCheckAt = time + 5;
+      const c = untilNextDay(new Date());
+      if (c !== this.hudCountdown) {
+        this.hudCountdown = c;
+        this.updateHud();
+      }
+    }
 
     // solved: pulse crystal, then advance
     if (this.solvedAt >= 0) {
@@ -861,7 +898,13 @@ export class PrismGameSystem extends createSystem({
       }
     } else {
       const spin = time * 0.8;
-      this.targets.forEach((m) => (m.rotation.y = spin));
+      this.targets.forEach((m, i) => {
+        m.rotation.y = spin;
+        // a crystal that just lit up flares once
+        const lt = this.litAt.get(i);
+        const f = lt !== undefined && time - lt < 0.6 ? 1 + 0.35 * Math.sin(((time - lt) / 0.6) * Math.PI) : 1;
+        m.scale.set(f, 1.6 * f, f);
+      });
     }
 
     // hint ring: always on the first tutorial board, on demand, or after idling

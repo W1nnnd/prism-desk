@@ -42,6 +42,12 @@ export class Synth {
   solve(bounces: number) {
     for (let i = 0; i <= Math.min(bounces + 1, PENTA.length - 1); i++) this.tone(PENTA[i], i * 0.09, 0.5);
   }
+  /** A crystal lights up (partial progress): a bright two-note sparkle, higher for each crystal lit. */
+  lit(k: number) {
+    const base = PENTA[Math.min(k + 2, PENTA.length - 2)];
+    this.tone(base, 0, 0.25, 0.06);
+    this.tone(base + 12, 0.06, 0.3, 0.035);
+  }
   day() {
     [0, 4, 7, 12, 16].forEach((s, i) => this.tone(s, i * 0.12, 1.2, 0.07));
   }

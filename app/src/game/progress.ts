@@ -3,6 +3,7 @@ export interface Settings {
   highContrast: boolean;
   dwell: boolean; // hover/gaze 1 s selects — no pinch needed (one-hand / low-mobility)
   dockLeft: boolean; // dock on the left for left-handed one-hand use
+  sound: boolean; // audio feedback on/off (all feedback is also visual)
 }
 
 export interface Progress {
@@ -17,7 +18,7 @@ export const defaultProgress = (): Progress => ({
   v: 1,
   solvedDays: [],
   tutorialDone: false,
-  settings: { highContrast: false, dwell: false, dockLeft: false },
+  settings: { highContrast: false, dwell: false, dockLeft: false, sound: true },
 });
 
 export function recordSolve(p: Progress, day: string): Progress {
@@ -87,4 +88,13 @@ export function saveProgress(store: KV | undefined, p: Progress) {
   } catch {
     /* storage unavailable — session-only progress */
   }
+}
+
+/** Time left until local midnight, when the next daily set unlocks, e.g. "5h 12m" or "9m". */
+export function untilNextDay(now: Date): string {
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const mins = Math.max(1, Math.ceil((next.getTime() - now.getTime()) / 60000));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }

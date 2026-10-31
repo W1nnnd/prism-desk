@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Board, Cell, reflect, toggleMirror, trace } from '../src/game/beam';
 import { dayKey, generatePuzzle } from '../src/game/daily';
 import { DAILY_SPECS, dailyLevels, TUTORIAL } from '../src/game/levels';
-import { bestStreak, currentStreak, defaultProgress, KV, loadProgress, recordSolve, saveProgress, STORAGE_KEY } from '../src/game/progress';
+import { bestStreak, currentStreak, defaultProgress, KV, loadProgress, recordSolve, saveProgress, STORAGE_KEY, untilNextDay } from '../src/game/progress';
 import { hint, solve } from '../src/game/solver';
 
 const E = { kind: 'empty' } as Cell;
@@ -129,5 +129,21 @@ describe('progress', () => {
     mem.set(STORAGE_KEY, JSON.stringify({ solvedDays: ['x', '2026-11-02', '2026-11-02'] }));
     expect(loadProgress(kv).solvedDays).toEqual(['2026-11-02']);
     expect(loadProgress(undefined)).toEqual(defaultProgress());
+  });
+});
+
+describe('come-back timer and sound setting', () => {
+  it('counts down to local midnight', () => {
+    expect(untilNextDay(new Date(2026, 10, 1, 18, 48, 0))).toBe('5h 12m');
+    expect(untilNextDay(new Date(2026, 10, 1, 23, 51, 30))).toBe('9m');
+    expect(untilNextDay(new Date(2026, 10, 1, 0, 0, 0))).toBe('24h 0m');
+  });
+
+  it('old saves without a sound setting load with sound on', () => {
+    const store: KV = { getItem: () => JSON.stringify({ v: 1, solvedDays: [], tutorialDone: true, settings: { highContrast: true } }), setItem: () => {} };
+    const p = loadProgress(store);
+    expect(p.settings.sound).toBe(true);
+    expect(p.settings.highContrast).toBe(true);
+    expect(defaultProgress().settings.sound).toBe(true);
   });
 });

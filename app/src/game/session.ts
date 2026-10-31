@@ -5,6 +5,7 @@ import { hint } from './solver.js';
 
 export type GameEvent =
   | { type: 'rotated'; cell: number }
+  | { type: 'targetLit'; cell: number } // a crystal that was dark is now lit (partial progress)
   | { type: 'solved'; level: Level }
   | { type: 'tutorialComplete' }
   | { type: 'dayComplete'; day: string };
@@ -44,6 +45,12 @@ export class GameSession {
   get solved() {
     return this.result.solved;
   }
+  get targetCount() {
+    return this.board.cells.filter((c) => c.kind === 'target').length;
+  }
+  get litCount() {
+    return this.result.litTargets.length;
+  }
 
   /** Daily already done → show the last board solved (garden view). */
   private showSolved() {
@@ -57,8 +64,10 @@ export class GameSession {
     if (next === this.board) return [];
     this.board = next;
     this.moves++;
+    const before = this.result.litTargets;
     this.result = trace(this.board);
     const events: GameEvent[] = [{ type: 'rotated', cell }];
+    for (const t of this.result.litTargets) if (!before.includes(t)) events.push({ type: 'targetLit', cell: t });
     if (!this.result.solved) return events;
 
     events.push({ type: 'solved', level: this.level });

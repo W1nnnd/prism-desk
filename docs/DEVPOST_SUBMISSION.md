@@ -12,6 +12,27 @@
 - **Track:** Gaming
 - **Division:** New Experience (all code written after Sep 24, 2026; first commit Oct 31, 2026)
 
+## Prize alignment (what we are entering for)
+
+**Primary target: Best New Gaming Experience** (Gaming track · New Experience division). Mapped to the four equally weighted criteria (25% each):
+
+| Criterion | What judges will see in Prism Desk |
+|---|---|
+| **Innovation & Creativity** | The puzzle is shaped by *your* room. Real objects detected on the table become blocked cells, and the daily board is regenerated around them (still guaranteed solvable). A missed beam leaves the board and lands as a glowing spot on your real wall. It is a shared, date-seeded daily puzzle ritual, played with light on your own desk. |
+| **Experience Design** | Seated, 30 cm board within a 2 ft radius (passes the airplane-seat test). A complete moment in 2–5 minutes (bus-stop test): three puzzles, a streak, a garden crystal. Instant pause/resume, because the state is a tiny local save. Wordless-first onboarding with a glowing ring on the mirror to touch, payoff in under 30 s. |
+| **Technical Implementation** | Meta's Immersive Web SDK (IWSDK 1.1) in `immersive-ar` passthrough. Hand tracking with direct poke, pinch-ray from either hand, gaze + pinch, plane and mesh detection, hit-test, **persistent spatial anchors** (the board returns to the same desk), FoV-aware placement in the seated reach band. Engine-free, unit-tested puzzle core (27 Vitest tests). Every interaction is scripted in the IWER Quest 3 emulator. About 48 draw calls and under 20k triangles, with no per-frame allocation. |
+| **Polish & Presentation** | A coherent "glass and light" look, all geometry generated in code. Procedural sound design: every mirror the beam passes adds a note, so a solve plays a short melody, and each crystal that lights up gives a rising sparkle. Every action has visual *and* audio feedback (mirror "pop", crystal flare), because hands have no haptics. 1:33 trailer from emulator footage. |
+
+**Special awards the design deliberately targets** (cross-track, $25k each):
+
+| Award | Why Prism Desk fits |
+|---|---|
+| **Best Reason to Come Back** | Three new date-seeded puzzles every day (the same for everyone), a streak, and a persistent crystal garden that grows one crystal per completed day (every 7th is bigger). When today is done, the HUD counts down to the next set ("New puzzles in 5h 12m"). A persistent spatial anchor brings the board and garden back to the same spot on your desk. |
+| **Best First Five Minutes** | No menus or text walls. The first board has one mirror with a glowing ring: touch it and the crystal lights within seconds. The second board teaches pinch-ray. Then today's real puzzles start. Idle for 25 s and a hint ring appears. A crystal counter and partial-progress chimes show you are on the right track. |
+| **Best Accessibility Forward Experience** | Fully playable without a pinch (**DWELL**: hold your aim for 1 s), with one hand (**SWAP SIDE** puts the dock on either side), or by gaze + pinch. **CONTRAST** gives a colour-blind-safe high-contrast palette and a thicker beam. **SOUND** on/off. Feedback never relies on sound or colour alone (shape pulses + HUD text). Seated and stationary. Text-light, English UI. |
+
+Also eligible: **Boldest Original Concept** (your real room becomes part of the puzzle, and light spills onto your real wall) and **Judge's Choice**.
+
 ## Links
 - **Play (hosted WebXR, HTTPS):** https://w1nnnd.github.io/prism-desk/
 - **Source code (MIT):** https://github.com/W1nnnd/prism-desk
@@ -36,7 +57,7 @@ Onboarding is two short steps, not a wall of text: "Pinch the glowing mirror", t
 - **Board placement:** plane and mesh detection find a table in the seated reach band.
 - **Persistent spatial anchors:** they bring the board and garden back to the same desk across sessions, with automatic placement as the fallback.
 - **Spill effect:** a raycast against detected surfaces runs only when the beam changes, never every frame.
-- **Puzzle logic:** the core (beam tracing, seeded generator, solver, streaks) is engine-free TypeScript with 23 Vitest tests.
+- **Puzzle logic:** the core (beam tracing, seeded generator, solver, streaks) is engine-free TypeScript with 27 Vitest tests.
 - **Performance:** all geometry is instanced and generated in code, with no third-party assets: about 50 draw calls and under 20k triangles.
 - **Testing:** we scripted every interaction (poke, pinch-ray, dwell, anchors, placement) in the IWER Quest 3 emulator.
 - **Hosting:** GitHub Pages, built by CI.
@@ -47,7 +68,7 @@ Onboarding is two short steps, not a wall of text: "Pinch the glowing mirror", t
 - Weekly "spectrum" puzzles with coloured beams and splitters.
 - Shared daily scores with friends.
 - Bonus levels that use your real walls as mirrors.
-- Spatial audio and haptics polish.
+- Spatial audio polish.
 - A packaged Quest app built from the same code.
 
 **Target launch date.** The web version is live and playable now. Target for the public v1.0 launch, with weekly puzzles and score sharing: **December 15, 2026**. A Meta Horizon Store build is targeted for **Q1 2027**.
@@ -57,7 +78,8 @@ Onboarding is two short steps, not a wall of text: "Pinch the glowing mirror", t
 - **Pinch-ray:** point an open hand at a mirror (a ray appears), then pinch thumb and index to rotate it. Either hand works.
 - **Gaze + pinch:** on headsets with eye tracking, look at a mirror and pinch.
 - **Dwell (no pinch):** press **DWELL** on the dock, then hold the ray on a mirror for about 1 second.
-- **Dock buttons:** poke or pinch **HINT** (ring on the next mirror), **RESET**, **CONTRAST** (high contrast palette), **DWELL**, and **SWAP SIDE** (moves the dock to the other hand's side).
+- **Dock buttons:** poke or pinch **HINT** (ring on the next mirror), **RESET**, **CONTRAST** (high contrast palette), **DWELL**, **SWAP SIDE** (moves the dock to the other hand's side) and **SOUND** (on/off).
+- **Feedback:** the mirror you turn pops and ticks; a crystal that lights up flares and chimes; a solve plays a melody that grows with the number of bounces.
 - **Recenter:** use the Quest system recenter gesture and the board re-places on the nearest table.
 
 ## Testing instructions for judges
@@ -66,8 +88,8 @@ Onboarding is two short steps, not a wall of text: "Pinch the glowing mirror", t
 3. Press **Enter XR** and allow the requested permissions (spatial data / room setup) when prompted. Passthrough starts and the board appears on the table in front of you, within reach. If no table is detected, it appears at a comfortable seated height.
 4. Follow the two-step tutorial: touch the mirror with the glowing ring, then pinch a mirror from a distance.
 5. Play today's three puzzles. When the beam misses, look where the light lands on your wall. After puzzle 3 a crystal grows in your garden and your streak goes up.
-6. Try **CONTRAST**, **DWELL** and **SWAP SIDE** on the dock. Exit and re-enter (or reload): the board returns to the same spot on your desk via a persistent anchor.
-7. No headset? The same URL opens a desktop preview in any browser: click mirrors; keys H / R / C / D / S = hint, reset, contrast, dwell, swap.
+6. Try **CONTRAST**, **DWELL**, **SWAP SIDE** and **SOUND** on the dock. Exit and re-enter (or reload): the board returns to the same spot on your desk via a persistent anchor.
+7. No headset? The same URL opens a desktop preview in any browser: click mirrors; keys H / R / C / D / S / M = hint, reset, contrast, dwell, swap, sound.
 
 Notes: progress is stored locally on the device (no account, no network calls beyond loading the page). Puzzles change at local midnight.
 
