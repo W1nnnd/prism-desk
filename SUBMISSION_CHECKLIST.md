@@ -29,8 +29,8 @@ Legend: 🤖 = assistant (box) · 👤 = user only · ✅ done
 ## Demo video (< 3:00)
 - [x] 🤖 Script + storyboard; capture footage from IWER emulator (`demo/record_trailer.sh`) (allowed: "XR Simulator or another equivalent emulator").
 - [ ] 👤 Optional headset capture (Quest casting/recording) — needs a physical headset.
-- [x] 🤖 Edit video → `demo/prism_desk_trailer.mp4` (1:33, 1280×720, burned-in English captions + `demo/prism_desk_trailer.srt`, offline Piper TTS narration). Not committed to git; not uploaded.
-- [ ] 👤 Upload to **YouTube or Vimeo as Public** (user's account).
+- [x] 🤖 Edit video → `demo/prism_desk_trailer.mp4` (1:33, 1280×720, burned-in English captions + `demo/prism_desk_trailer.srt`, offline Piper TTS narration). Not committed to git.
+- [x] 🤖 Public YouTube upload verified Nov 6: https://www.youtube.com/watch?v=ABOWM-r3Eow (风风 / @风风-t3m, published Nov 3).
 
 ## Devpost submission form (🤖 drafts, 👤 submits by hand)
 - [x] 🤖 Name, 140-char tagline. → `docs/DEVPOST_SUBMISSION.md`

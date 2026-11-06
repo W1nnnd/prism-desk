@@ -36,7 +36,7 @@ Also eligible: **Boldest Original Concept** (your real room becomes part of the 
 ## Links
 - **Play (hosted WebXR, HTTPS):** https://w1nnnd.github.io/prism-desk/
 - **Source code (MIT):** https://github.com/W1nnnd/prism-desk
-- **Demo video (< 3 min):** *upload `demo/prism_desk_trailer.mp4` to YouTube or Vimeo as Public or Unlisted-public, attach `demo/prism_desk_trailer.srt` as English captions, then paste the link here.*
+- **Demo video (< 3 min):** https://www.youtube.com/watch?v=ABOWM-r3Eow (public on 风风, Nov 3; 1:33 with burned-in captions; matching `demo/prism_desk_trailer.mp4`)
 
 ## Description (~500 words)
 

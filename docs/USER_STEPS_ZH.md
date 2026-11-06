@@ -10,6 +10,6 @@
 4. **手动粘贴文案**：打开 https://github.com/W1nnnd/prism-desk/blob/main/docs/DEVPOST_SUBMISSION.md ，把名称、Tagline、Description、Hand interaction、Testing instructions、目标上线日期逐项复制到表单里。
 5. **上传截图**：从仓库的 `docs/screenshots/` 下载 6 张 `devpost_1` 到 `devpost_6` 开头的 jpg 图片，按顺序上传，并配上文档里写好的英文说明。
 6. **填写托管网址**：https://w1nnnd.github.io/prism-desk/
-7. **填写视频链接**：填已公开上传的 YouTube 或 Vimeo 链接（预告片 1:33，不超过 3 分钟）。如果还没上传，先告诉助手是否同意公开上传到"风风"频道。
+7. **填写视频链接**：直接填 https://www.youtube.com/watch?v=ABOWM-r3Eow （已在「风风」频道公开，1:33）。
 8. **补充个人信息**：填写团队成员的姓名、邮箱和角色（只有你一人就填你自己），确认项目没有 Meta 资助、也没有利益冲突。
 9. **自己检查并点 Submit**：建议先用 Quest 浏览器实际打开网址试玩一遍，然后亲手点 **Submit**，截图或保存提交确认页。截止后作品不能再修改。
